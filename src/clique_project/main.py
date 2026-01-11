@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import math
 
 ########################################### create graph 
 def random_adjacency_matrix(n, p):
@@ -67,11 +68,44 @@ def find_upb(A, box):
     for i in box:
         A1[:, i[0]] = 0
         A1[i[0], :] = 0
-        n = find_n(i[1])
         k = find_k(A1, i[1])
         upb = int((1+(1+8*k)**0.5)/2)
         box[count].append([upb])
         count += 1
+
+def find_lwb(A, box):
+    A1 = A.copy()
+    count = 0
+    for i in box:
+        A1[:, i[0]] = 0
+        A1[i[0], :] = 0
+        n = find_n(i[1])
+        k = find_k(A1, i[1])
+        lwb = 1
+        for r in range(1,n+1,1):
+            q = int(n/r)
+            s = n - q*r
+            km = math.comb(n,2) - math.comb(q+1,2)*s - math.comb(q,2)*(r-s)
+            if km == k:
+                lwb = r
+                break
+            if km > k:
+                lwb = r-1
+                break
+        box[count][2].append(lwb)
+        count += 1
+
+def deduct_nodes(box):
+    max_lwb = max(a[2][1] for a in box)
+    print("max_lwb:", max_lwb)
+    for i in box:
+        if i[2][0] < max_lwb:
+            print(i)
+            box.remove(i)
+
+
+########################################### helper functions end
+
 
 def main():
     n = 5
@@ -86,7 +120,8 @@ def main():
     box = split_nodes(A, sorted_nodes)
 
     find_upb(A, box)
+    find_lwb(A, box)
+    deduct_nodes(box)
     print(box)
-    
 if __name__ == "__main__":
     main()
