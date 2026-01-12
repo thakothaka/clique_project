@@ -1,8 +1,7 @@
 import networkx as nx
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 import math
+import time
 
 ########################################### create graph 
 def random_adjacency_matrix(n, p):
@@ -105,15 +104,21 @@ def deduct_nodes(box):
     max_lwb = max(a[2][1] for a in box)
     remove_list = []
     for i in box:
+        # print("node:", i[0], "upb:", i[2][0], "lwb:", i[2][1])
         if i[2][0] < max_lwb:
             remove_list.append(i)
     for j in remove_list:
         box.remove(j)
 
-def check_clique(box, max_clique):
+def is_clique(A, nodes):
+    sub = A[np.ix_(nodes, nodes)]
+    return np.all(sub + np.eye(len(nodes), dtype=int) == 1)
+
+def check_clique(A, box, max_clique):
     remove_list = []
-    for i in box:
-        if i[2][0] == i[2][1] == len(i[0]) + len(i[1]):
+    for i in box: 
+        nodes = i[0] + i[1]
+        if is_clique(A, nodes):
             if len(max_clique) == 0:
                 clique = [i[0]+i[1], i[2][0]]
                 max_clique.append(clique)
@@ -129,6 +134,7 @@ def check_clique(box, max_clique):
                     clique = [i[0]+i[1], i[2][0]]
                     max_clique.append(clique)
                     remove_list.append(i)
+
     for j in remove_list:
         box.remove(j)
 
@@ -150,38 +156,63 @@ def split_node_in_box(A, box):
         used_nodes += [x for x in n if x not in used_nodes]
     return box2 + box
 ########################################### helper functions end
+def max_clique(A):
+    max_clique = []
+    sorted_nodes = sort_nodes_by_degree(A)
+    box = split_nodes(A, sorted_nodes)
+
+    while box:
+        find_upb(A, box)
+        find_lwb(A, box)
+        deduct_nodes(box)
+        check_clique(A, box, max_clique)
+        box = split_node_in_box(A, box)
+
+    if not max_clique:
+        return []
+
+    best = max(max_clique, key=lambda x: x[1])[0]
+    return best
 
 def find_nx(A):
     G = nx.from_numpy_array(A)
     return max(nx.find_cliques(G), key=len)
 
+import time
+
+def timed(func, *args, repeat=1, warmup=0, **kwargs):
+    # warmup runs (not timed)
+    for _ in range(warmup):
+        func(*args, **kwargs)
+
+    times = []
+    result = None
+    for _ in range(repeat):
+        t0 = time.perf_counter()
+        result = func(*args, **kwargs)
+        t1 = time.perf_counter()
+        times.append(t1 - t0)
+
+    return result, min(times), sum(times) / len(times)
 
 def main():
-    max_clique = []
-    n = 10
-    p = 0.9
+    n = 20
+    p = 0.5
     A = random_adjacency_matrix(n, p)
-    # A = fix_A()
-    print(A)
 
-    sorted_nodes = sort_nodes_by_degree(A)
-    box = split_nodes(A, sorted_nodes)
+    best, t_best, t_avg = timed(max_clique, A, repeat=3, warmup=1)
+    nx_best, nx_t_best, nx_t_avg = timed(find_nx, A, repeat=3, warmup=1)
 
-    # find_upb(A, box)
-    # find_lwb(A, box)
-    # deduct_nodes(box)
-    # check_clique(box, max_clique)
-    # box = split_node_in_box(A, box)
+    from bitset import max_clique_bitset
+    bit_best, bit_t_best, bit_t_avg = timed(max_clique_bitset, A, repeat=3, warmup=1)
 
-    while box != []:
-        find_upb(A, box)
-        find_lwb(A, box)
-        deduct_nodes(box)
-        check_clique(box, max_clique)
-        box = split_node_in_box(A, box)
-    print("Max clique found :", max_clique)
+    print("My size:", len(best))
+    print("NX size:", len(nx_best))
+    print("Bitset :", len(bit_best))
 
-    print("NetworkX Max clique:", find_nx(A), len(find_nx(A)))
+    print(f"My time     best={t_best:.6f}s avg={t_avg:.6f}s")
+    print(f"NX time     best={nx_t_best:.6f}s avg={nx_t_avg:.6f}s")
+    print(f"Bitset time best={bit_t_best:.6f}s avg={bit_t_avg:.6f}s")
 
 if __name__ == "__main__":
     main()
