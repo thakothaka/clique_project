@@ -147,7 +147,7 @@ def split_node_in_box(A, box):
     for n in nodes:
         member = np.where(np.all(A1[n] == 1, axis=0))[0].tolist()
         box2 = box2 + [[n, [x for x in member if x not in used_nodes]]] 
-        used_nodes += member
+        used_nodes += [x for x in n if x not in used_nodes]
     return box2 + box
 ########################################### helper functions end
 
@@ -158,7 +158,7 @@ def find_nx(A):
 
 def main():
     max_clique = []
-    n = 20
+    n = 10
     p = 0.9
     A = random_adjacency_matrix(n, p)
     # A = fix_A()
@@ -166,6 +166,12 @@ def main():
 
     sorted_nodes = sort_nodes_by_degree(A)
     box = split_nodes(A, sorted_nodes)
+
+    # find_upb(A, box)
+    # find_lwb(A, box)
+    # deduct_nodes(box)
+    # check_clique(box, max_clique)
+    # box = split_node_in_box(A, box)
 
     while box != []:
         find_upb(A, box)
